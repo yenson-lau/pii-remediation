@@ -19,7 +19,7 @@ class WikiDatasetBuilder:
                                                   OmegaConf.create(config))
 
     def build_dataset(self) -> datasets.Dataset:
-        self.wiki: datasets.Dataset = datasets.load_dataset("wikipedia", self.config.hf_config, split="train")
+        self.wiki = datasets.load_dataset("wikipedia", self.config.hf_config, split="train")
         n_wiki = len(self.wiki)
         self.dataset_dict = dict()
 
@@ -35,7 +35,7 @@ class WikiDatasetBuilder:
         idx_cursor = 0
 
         for split, lim_mb in self.config.specs.split_size_mb.items():
-            sents = []
+            self.dataset_dict[split] = []
             size_mb = 0
             start_time = time.time()
 
@@ -53,22 +53,21 @@ class WikiDatasetBuilder:
                 article_sents = [s for s in sum(map(sent_tokenize, article_lines), [])
                                  if s.count(" ") > self.config.specs.sentence_min_spaces]
 
-                # make to use a new variable for each step or this will take forever!
-                sents.append([dict(article_id=article_id, sentence=s) for s in article_sents])
+                # make to use a separate variable for each step or this will take forever!
+                self.dataset_dict[split] += [dict(article_id=article_id, sentence=s)
+                                             for s in article_sents]
 
-                size_mb += sum(map(len, article_sents)) >> 10
+                size_mb += sum(map(len, article_sents)) / 1024**2
                 elapsed_time = time.time() - start_time
 
-                print("Creating {} split: {}/{}mb ({:3d}%, {:d}s, {:.2f}mb/s)".format(
+                print("Building {} split: {}/{}mb ({:3d}%, {:d}s, {:.1f}mb/s)".format(
                     split,
-                    (r"{:%sd}" % len(str(lim_mb))).format(size_mb),
+                    (r"{:%sd}" % len(str(lim_mb))).format(int(size_mb)),
                     lim_mb,
                     int(size_mb/lim_mb*100),
                     int(elapsed_time),
                     size_mb/elapsed_time
                 ), end="\r")
-
-            self.dataset_dict[split] = sum(sents, start = [])
             print()
 
         self.save_dataset_dict()
@@ -93,4 +92,7 @@ class WikiDatasetBuilder:
         return os.path.join(_DATA_DIR, self.__class__.__name__), self.config.build.filename
 
 if __name__ == "__main__":
-    ds = WikiDatasetBuilder().build_dataset()
+    import sys
+
+    if (len(sys.argv) > 1) and (sys.argv[1]=="build"):
+        WikiDatasetBuilder().build_dataset()
