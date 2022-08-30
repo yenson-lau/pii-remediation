@@ -100,5 +100,6 @@ class WikiDatasetBuilder:
 if __name__ == "__main__":
     import sys
 
+    # TODO: Expand args to accept different configs / use argparse
     if (len(sys.argv) > 1) and (sys.argv[1]=="build"):
         WikiDatasetBuilder().build_dataset()
