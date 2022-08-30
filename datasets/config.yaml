@@ -1,0 +1,15 @@
+data_dir: ../data
+
+WikiDatasetBuilder:
+  hf_config: 20220301.en
+
+  specs:
+    split_size_mb:
+      train: 1024
+      test: 256
+    sentence_min_spaces: 5
+
+  build:
+    filename: 20220301.en.1gb.json
+    shuffle: true
+    random_seed: 0
