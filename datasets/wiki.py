@@ -1,10 +1,11 @@
-import datasets
+# import datasets
 import json
 import numpy as np
 import pandas as pd
 import os
 import re
 import time
+from datasets import Dataset, load_dataset
 from nltk.tokenize import sent_tokenize
 from omegaconf import OmegaConf, DictConfig
 from typing import Union
@@ -14,12 +15,14 @@ _DS_CONF = OmegaConf.load(os.path.join(_DS_DIR, "config.yaml"))
 _DATA_DIR = os.path.join(_DS_DIR, _DS_CONF.data_dir)
 
 class WikiDatasetBuilder:
+    config = _DS_CONF.WikiDatasetBuilder
+
     def __init__(self, **config):
-        self.config: DictConfig = OmegaConf.merge(_DS_CONF.WikiDatasetBuilder,
+        self.config: DictConfig = OmegaConf.merge(WikiDatasetBuilder.config,
                                                   OmegaConf.create(config))
 
-    def build_dataset(self) -> datasets.Dataset:
-        self.wiki = datasets.load_dataset("wikipedia", self.config.hf_config, split="train")
+    def build_dataset(self) -> Dataset:
+        self.wiki = load_dataset("wikipedia", self.config.hf_config, split="train")
         n_wiki = len(self.wiki)
         self.dataset_dict = dict()
 
@@ -70,26 +73,29 @@ class WikiDatasetBuilder:
                 ), end="\r")
             print()
 
-        self.save_dataset_dict()
-        return self.load_dataset()
+        data_file = WikiDatasetBuilder._resolve_data_file(self.config)
+        self.save_dataset_dict(data_file)
+        return WikiDatasetBuilder.load_dataset(data_file)
 
-    def save_dataset_dict(self, path:Union[str,None]=None):
-        if path is None:
-            path = os.path.join(*self._resolve_dataset_path())
+    def save_dataset_dict(self, data_file:Union[str,None]=None):
+        if data_file is None:
+            data_file = self._resolve_data_file(self.config)
 
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        os.makedirs(os.path.dirname(data_file), exist_ok=True)
 
-        with open(path, 'wt', encoding='UTF-8') as f:
+        with open(data_file, 'wt', encoding='UTF-8') as f:
             json.dump(self.dataset_dict, f, indent=4)
 
-    def load_dataset(self, path:Union[str,None]=None, split:str="train") -> datasets.Dataset:
-        if path is None:
-            dir, path = self._resolve_dataset_path()
+    def load_dataset(data_file:Union[str,None]=None, split:str="train") -> Dataset:
+        if data_file is None:
+            data_file = WikiDatasetBuilder._resolve_data_file()
+        return load_dataset("json", data_files=data_file, field=split)
 
-        return datasets.load_dataset("json", data_files=os.path.join(dir, path), field=split)
+    def _resolve_data_file(config:Union[DictConfig,None]=None) -> str:
+        if config is None:
+            config = WikiDatasetBuilder.config
+        return os.path.join(_DATA_DIR, "wiki", config.build.filename)
 
-    def _resolve_dataset_path(self) -> str:
-        return os.path.join(_DATA_DIR, self.__class__.__name__), self.config.build.filename
 
 if __name__ == "__main__":
     import sys
