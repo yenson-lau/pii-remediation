@@ -1,4 +1,4 @@
-# import datasets
+import gzip
 import json
 import numpy as np
 import pandas as pd
@@ -82,9 +82,10 @@ class WikiDatasetBuilder:
             data_file = self._resolve_data_file(self.config)
 
         os.makedirs(os.path.dirname(data_file), exist_ok=True)
-
-        with open(data_file, 'wt', encoding='UTF-8') as f:
-            json.dump(self.dataset_dict, f, indent=4)
+        file = (gzip.open(data_file, 'wt', encoding='UTF-8') if data_file.endswith(".gz")
+                else open(data_file, 'wt', encoding='UTF-8'))
+        json.dump(self.dataset_dict, file, indent=4)
+        file.close()
 
     def load_dataset(data_file:Union[str,None]=None, split:str="train") -> Dataset:
         if data_file is None:

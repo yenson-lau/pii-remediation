@@ -10,6 +10,6 @@ WikiDatasetBuilder:
     sentence_min_spaces: 5
 
   build:
-    filename: 20220301.en.1gb.json
+    filename: 20220301.en.1gb.json.gz
     shuffle: true
     random_seed: 0
