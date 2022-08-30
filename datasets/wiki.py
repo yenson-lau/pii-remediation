@@ -17,7 +17,7 @@ _DATA_DIR = os.path.join(_DS_DIR, _DS_CONF.data_dir)
 class WikiDatasetBuilder:
     config = _DS_CONF.WikiDatasetBuilder
 
-    def __init__(self, **config):
+    def __init__(self, config:Union[dict, str, DictConfig]=dict()):
         self.config: DictConfig = OmegaConf.merge(WikiDatasetBuilder.config,
                                                   OmegaConf.create(config))
 
@@ -102,5 +102,17 @@ if __name__ == "__main__":
     import sys
 
     # TODO: Expand args to accept different configs / use argparse
-    if (len(sys.argv) > 1) and (sys.argv[1]=="build"):
-        WikiDatasetBuilder().build_dataset()
+    if (len(sys.argv) > 1):
+        if(sys.argv[1]=="build"):
+            WikiDatasetBuilder().build_dataset()
+        elif(sys.argv[1]=="test"):
+            test_config = """
+            specs:
+                split_size_mb:
+                    train: 1
+                    test: 0.25
+
+            build:
+                filename: 20220301.en.1mb.json.gz
+            """
+            WikiDatasetBuilder(test_config).build_dataset()
