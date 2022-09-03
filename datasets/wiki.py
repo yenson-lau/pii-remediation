@@ -43,46 +43,48 @@ class WikiDatasetBuilder:
         if sent_min_spaces is None:  sent_min_spaces = float("-inf")
         if sent_max_spaces is None:  sent_max_spaces = float("inf")
 
-        idx_cursor = 0
-
         for split, lim_mb in self.config.specs.split_size_mb.items():
             self.dataset_dict[split] = []
             size_mb = 0
             start_time = time.time()
 
-            while (size_mb < lim_mb) and (idx_cursor < n_wiki):
-                # use a separate variable for each step or this will take forever!
-                # also preload config variables for intense tasks
+            def print_bar(size_mb, term_len=os.get_terminal_size().columns):
+                elapsed_time = time.time() - start_time
+                size_mb_str = (r"{:%sd}" % len(str(lim_mb))).format(int(size_mb))
+                frac = size_mb/lim_mb
+                rate = size_mb/elapsed_time
 
-                dataset_id = int(idx_queue[idx_cursor])
+                desc = f"Building {split} split: {int(frac*100):3d}% "
+                stats = f" {size_mb_str}/{lim_mb}mb [{int(elapsed_time):d}s, {rate:.1f}mb/s]"
 
-                article = self.wiki[dataset_id]
+                bar_len = term_len - len(desc) - len(stats) - 2
+                fill_len = int(frac * bar_len)
+                bar = "|" + "█"*fill_len + " "*(bar_len-fill_len) + "|"
+
+                print(desc+bar+stats , end="\r")
+
+            # optimizing for loops:
+            # - use a separate variable for each step
+            # - preload config variables for intense tasks
+            for idx in map(int, idx_queue):
+                if size_mb > lim_mb:  break
+
+                article = self.wiki[idx]
                 article_id = int(article["id"])
 
                 self.dataset_dict["article_title"][article_id] = article["title"]
-                self.dataset_dict["article_to_dataset_id"][article_id] = dataset_id
-
-                idx_cursor += 1
+                self.dataset_dict["article_to_dataset_id"][article_id] = idx
 
                 article_sents = [
                     s for s in WikiDatasetBuilder.extract_sentences(article["text"])
-                    if  sent_min_spaces <= s.count(" ") <= sent_max_spaces
+                    if sent_min_spaces <= s.count(" ") <= sent_max_spaces
                 ]
 
                 self.dataset_dict[split] += [dict(article_id=article_id, sentence=s)
                                              for s in article_sents]
 
                 size_mb += sum(map(len, article_sents)) / 1024**2
-                elapsed_time = time.time() - start_time
-
-                print("Building {} split: {:3d}% [{}/{}mb, {:d}s, {:.1f}mb/s]".format(
-                    split,
-                    int(size_mb/lim_mb*100),
-                    (r"{:%sd}" % len(str(lim_mb))).format(int(size_mb)),
-                    lim_mb,
-                    int(elapsed_time),
-                    size_mb/elapsed_time
-                ), end="\r")
+                print_bar(size_mb)
             print()
 
         data_file = WikiDatasetBuilder._resolve_data_file(self.config)
@@ -91,7 +93,6 @@ class WikiDatasetBuilder:
 
     def extract_sentences(text, use_unidecode=False):
         # remove non-ascii characters
-        # skip unidecode because it is slow and also creates a lot of junk tokens
         # replace multiple consecutive spaces with a single space
         ascii_text = re.sub(r" [ ]+", " ",
                             (unidecode(text) if use_unidecode else text)
