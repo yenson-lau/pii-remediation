@@ -45,6 +45,7 @@ class WikiDatasetBuilder:
 
         for split, lim_mb in self.config.specs.split_size_mb.items():
             self.dataset_dict[split] = []
+            n_sents = 0
             size_mb = 0
             start_time = time.time()
 
@@ -67,7 +68,9 @@ class WikiDatasetBuilder:
             # - use a separate variable for each step
             # - preload config variables for intense tasks
             for idx in map(int, idx_queue):
-                if size_mb > lim_mb:  break
+                if size_mb > lim_mb:
+                    idx_queue = idx_queue[n_sents:]
+                    break
 
                 article = self.wiki[idx]
                 article_id = int(article["id"])
@@ -83,6 +86,7 @@ class WikiDatasetBuilder:
                 self.dataset_dict[split] += [dict(article_id=article_id, sentence=s)
                                              for s in article_sents]
 
+                n_sents += len(article_sents)
                 size_mb += sum(map(len, article_sents)) / 1024**2
                 print_bar(size_mb)
             print()
