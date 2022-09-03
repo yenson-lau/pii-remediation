@@ -9,6 +9,7 @@ from datasets import Dataset, load_dataset
 from nltk.tokenize import sent_tokenize
 from omegaconf import OmegaConf, DictConfig
 from typing import Union
+from unidecode import unidecode
 
 _DS_DIR = os.path.dirname(os.path.realpath(__file__))
 _DS_CONF = OmegaConf.load(os.path.join(_DS_DIR, "config.yaml"))
@@ -64,7 +65,7 @@ class WikiDatasetBuilder:
                 idx_cursor += 1
 
                 article_sents = [
-                    s for s in WikiDatasetBuilder.text_to_sents(article["text"])
+                    s for s in WikiDatasetBuilder.extract_sentences(article["text"])
                     if  sent_min_spaces <= s.count(" ") <= sent_max_spaces
                 ]
 
@@ -88,14 +89,18 @@ class WikiDatasetBuilder:
         self.save_dataset_dict(data_file)
         return WikiDatasetBuilder.load_dataset(data_file)
 
-    def text_to_sents(text):
+    def extract_sentences(text, use_unidecode=False):
         # remove non-ascii characters
+        # skip unidecode because it is slow and also creates a lot of junk tokens
         # replace multiple consecutive spaces with a single space
-        text = re.sub(r" [ ]+", " ", text.encode("ascii", "ignore").decode())
+        ascii_text = re.sub(r" [ ]+", " ",
+                            (unidecode(text) if use_unidecode else text)
+                                .encode("ascii", "ignore")
+                                .decode())
 
         # split by one or more newlines
         # strip any spaces
-        lines = re.findall(r"([^\|\s][^\|\n]+[^\|\s])", text)
+        lines = re.findall(r"([^\|\s][^\|\n]+[^\|\s])", ascii_text)
 
         # sentence tokenize each line and collect into a list
         sents = sum(map(sent_tokenize, lines), [])

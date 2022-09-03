@@ -154,7 +154,7 @@ TEST_TEXTS = [
 ]
 
 def test_match(text, ref_sents):
-    test_sents = np.array(WikiDatasetBuilder.text_to_sents(text))
+    test_sents = np.array(WikiDatasetBuilder.extract_sentences(text))
     ref_sents = np.array(ref_sents)
 
     len_test_sents = len(test_sents)
