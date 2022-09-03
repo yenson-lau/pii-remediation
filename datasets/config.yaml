@@ -1,4 +1,4 @@
-data_dir: ../data
+data_dir: ../_data
 
 WikiDatasetBuilder:
   hf_config: 20220301.en
@@ -8,6 +8,7 @@ WikiDatasetBuilder:
       train: 1024
       test: 256
     sentence_min_spaces: 5
+    sentence_max_spaces: 200
 
   build:
     filename: 20220301.en.1gb.json.gz

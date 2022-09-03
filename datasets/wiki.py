@@ -33,7 +33,14 @@ class WikiDatasetBuilder:
             idx_queue = np.arange(n_wiki)
 
         self.dataset_dict["config"]: dict = OmegaConf.to_object(self.config)
-        self.dataset_dict["article_titles"]: dict[int, str] = dict()
+        self.dataset_dict["article_title"]: dict[int, str] = dict()
+        self.dataset_dict["article_to_dataset_id"]: dict[int, int] = dict()
+
+        sent_min_spaces = self.config.specs.sentence_min_spaces
+        sent_max_spaces = self.config.specs.sentence_max_spaces
+
+        if sent_min_spaces is None:  sent_min_spaces = float("-inf")
+        if sent_max_spaces is None:  sent_max_spaces = float("inf")
 
         idx_cursor = 0
 
@@ -43,31 +50,35 @@ class WikiDatasetBuilder:
             start_time = time.time()
 
             while (size_mb < lim_mb) and (idx_cursor < n_wiki):
-                article = self.wiki[int(idx_queue[idx_cursor])]
+                # use a separate variable for each step or this will take forever!
+                # also preload config variables for intense tasks
+
+                dataset_id = int(idx_queue[idx_cursor])
+
+                article = self.wiki[dataset_id]
+                article_id = int(article["id"])
+
+                self.dataset_dict["article_title"][article_id] = article["title"]
+                self.dataset_dict["article_to_dataset_id"][article_id] = dataset_id
+
                 idx_cursor += 1
 
-                article_id = int(article["id"])
-                self.dataset_dict["article_titles"][article_id] = article["title"]
+                article_sents = [
+                    s for s in WikiDatasetBuilder.text_to_sents(article["text"])
+                    if  sent_min_spaces < s.count(" ") < sent_max_spaces
+                ]
 
-                # split by one or more newlines, strip any spaces
-                article_lines = re.findall(r"([^\n\s][^\n]+[^\n\s])", article["text"])
-
-                # sentence tokenize each line, then remove any sentence with too few spaces
-                article_sents = [s for s in sum(map(sent_tokenize, article_lines), [])
-                                 if s.count(" ") > self.config.specs.sentence_min_spaces]
-
-                # make to use a separate variable for each step or this will take forever!
                 self.dataset_dict[split] += [dict(article_id=article_id, sentence=s)
                                              for s in article_sents]
 
                 size_mb += sum(map(len, article_sents)) / 1024**2
                 elapsed_time = time.time() - start_time
 
-                print("Building {} split: {}/{}mb ({:3d}%, {:d}s, {:.1f}mb/s)".format(
+                print("Building {} split: {:3d}% [{}/{}mb, {:d}s, {:.1f}mb/s]".format(
                     split,
+                    int(size_mb/lim_mb*100),
                     (r"{:%sd}" % len(str(lim_mb))).format(int(size_mb)),
                     lim_mb,
-                    int(size_mb/lim_mb*100),
                     int(elapsed_time),
                     size_mb/elapsed_time
                 ), end="\r")
@@ -76,6 +87,20 @@ class WikiDatasetBuilder:
         data_file = WikiDatasetBuilder._resolve_data_file(self.config)
         self.save_dataset_dict(data_file)
         return WikiDatasetBuilder.load_dataset(data_file)
+
+    def text_to_sents(text):
+        # remove non-ascii characters
+        # replace multiple consecutive spaces with a single space
+        text = re.sub(r" [ ]+", " ", text.encode("ascii", "ignore").decode())
+
+        # split by one or more newlines
+        # strip any spaces
+        lines = re.findall(r"([^\|\s][^\|\n]+[^\|\s])", text)
+
+        # sentence tokenize each line and collect into a list
+        sents = sum(map(sent_tokenize, lines), [])
+
+        return sents
 
     def save_dataset_dict(self, data_file:Union[str,None]=None):
         if data_file is None:
@@ -103,16 +128,18 @@ if __name__ == "__main__":
 
     # TODO: Expand args to accept different configs / use argparse
     if (len(sys.argv) > 1):
+
         if(sys.argv[1]=="build"):
             WikiDatasetBuilder().build_dataset()
+
         elif(sys.argv[1]=="test"):
             test_config = """
             specs:
                 split_size_mb:
-                    train: 1
-                    test: 0.25
+                    train: 10
+                    test: 1
 
             build:
-                filename: 20220301.en.1mb.json.gz
+                filename: 20220301.en.test.json
             """
             WikiDatasetBuilder(test_config).build_dataset()
