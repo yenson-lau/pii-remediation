@@ -65,7 +65,7 @@ class WikiDatasetBuilder:
 
                 article_sents = [
                     s for s in WikiDatasetBuilder.text_to_sents(article["text"])
-                    if  sent_min_spaces < s.count(" ") < sent_max_spaces
+                    if  sent_min_spaces <= s.count(" ") <= sent_max_spaces
                 ]
 
                 self.dataset_dict[split] += [dict(article_id=article_id, sentence=s)
