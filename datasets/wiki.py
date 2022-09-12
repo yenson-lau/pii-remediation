@@ -8,19 +8,31 @@ import time
 from datasets import Dataset, load_dataset
 from nltk.tokenize import sent_tokenize
 from omegaconf import OmegaConf, DictConfig
-from typing import Union
+from typing import Optional, Union
 from unidecode import unidecode
 
-_DS_DIR = os.path.dirname(os.path.realpath(__file__))
-_DS_CONF = OmegaConf.load(os.path.join(_DS_DIR, "config.yaml"))
-_DATA_DIR = os.path.join(_DS_DIR, _DS_CONF.data_dir)
+__DIR__ = os.path.dirname(os.path.realpath(__file__))
+_DS_CONF = OmegaConf.load(os.path.join(__DIR__, "config.yaml"))
+
 
 class WikiDatasetBuilder:
-    config = _DS_CONF.WikiDatasetBuilder
+    config: DictConfig = _DS_CONF.WikiDatasetBuilder
+    data_dir: str = _DS_CONF.data_dir.format(__dir__=__DIR__)
 
-    def __init__(self, config:Union[dict, str, DictConfig]=dict()):
+    def __init__(self,
+        config: Union[dict, str, DictConfig] = dict(),
+        data_file: Optional[str] = None
+    ) -> None:
+
         self.config: DictConfig = OmegaConf.merge(WikiDatasetBuilder.config,
                                                   OmegaConf.create(config))
+
+        if data_file is None:
+            self.data_file = os.path.join(WikiDatasetBuilder.data_dir,
+                                          self.config.build.subdirectory,
+                                          self.config.build.filename)
+        else:
+            self.data_file = data_file
 
     def build_dataset(self) -> Dataset:
         self.wiki = load_dataset("wikipedia", self.config.hf_config, split="train")
@@ -91,9 +103,8 @@ class WikiDatasetBuilder:
                 print_bar(size_mb)
             print()
 
-        data_file = WikiDatasetBuilder._resolve_data_file(self.config)
-        self.save_dataset_dict(data_file)
-        return WikiDatasetBuilder.load_dataset(data_file)
+        self.save_dataset_dict(self.data_file)
+        return WikiDatasetBuilder.load_dataset(self.data_file)
 
     def extract_sentences(text, use_unidecode=False):
         # remove non-ascii characters
@@ -112,9 +123,9 @@ class WikiDatasetBuilder:
 
         return sents
 
-    def save_dataset_dict(self, data_file:Union[str,None]=None):
+    def save_dataset_dict(self, data_file: Optional[str] = None) -> None:
         if data_file is None:
-            data_file = self._resolve_data_file(self.config)
+            data_file = self.data_file
 
         os.makedirs(os.path.dirname(data_file), exist_ok=True)
         file = (gzip.open(data_file, 'wt', encoding='UTF-8') if data_file.endswith(".gz")
@@ -122,15 +133,11 @@ class WikiDatasetBuilder:
         json.dump(self.dataset_dict, file, indent=4)
         file.close()
 
-    def load_dataset(data_file:Union[str,None]=None, split:str="train") -> Dataset:
+    def load_dataset(data_file: Union[str,None] = None, split: str = "train") -> Dataset:
         if data_file is None:
-            data_file = WikiDatasetBuilder._resolve_data_file()
-        return load_dataset("json", data_files=data_file, field=split)
+            data_file = WikiDatasetBuilder.data_file
 
-    def _resolve_data_file(config:Union[DictConfig,None]=None) -> str:
-        if config is None:
-            config = WikiDatasetBuilder.config
-        return os.path.join(_DATA_DIR, "wiki", config.build.filename)
+        return load_dataset("json", data_files=data_file, field=split)
 
 
 if __name__ == "__main__":

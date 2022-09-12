@@ -1,4 +1,4 @@
-data_dir: ../_data
+data_dir: {__dir__}/../_data
 
 WikiDatasetBuilder:
   hf_config: 20220301.en
@@ -11,6 +11,7 @@ WikiDatasetBuilder:
     sentence_max_spaces: 200
 
   build:
+    subdirectory: wiki
     filename: 20220301.en.1gb.json.gz
     shuffle: true
     random_seed: 0
