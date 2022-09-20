@@ -1,0 +1,13 @@
+data_directory: "{__dir__}/../_data"
+
+tokenizer:
+  subdirectory: tokenizer
+
+  wordpiece:
+    prefix: wordpiece
+    vocab_size: 20_000
+    strip_accents: true
+    lowercase: false
+    special_tokens: ["[UNK]", "[SEP]", "[PAD]", "[CLS]", "[MASK]"]
+    batch_size: 1000
+

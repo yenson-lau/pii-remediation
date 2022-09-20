@@ -1,4 +1,4 @@
-data_dir: {__dir__}/../_data
+data_dir: "{__dir__}/../_data"
 
 WikiDatasetBuilder:
   hf_config: 20220301.en

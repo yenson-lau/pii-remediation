@@ -16,19 +16,18 @@ _DS_CONF = OmegaConf.load(os.path.join(__DIR__, "config.yaml"))
 
 
 class WikiDatasetBuilder:
-    config: DictConfig = _DS_CONF.WikiDatasetBuilder
-    data_dir: str = _DS_CONF.data_dir.format(__dir__=__DIR__)
+    default_config: DictConfig = _DS_CONF.WikiDatasetBuilder
 
     def __init__(self,
         config: Union[dict, str, DictConfig] = dict(),
         data_file: Optional[str] = None
     ) -> None:
 
-        self.config: DictConfig = OmegaConf.merge(WikiDatasetBuilder.config,
+        self.config: DictConfig = OmegaConf.merge(WikiDatasetBuilder.default_config,
                                                   OmegaConf.create(config))
 
         if data_file is None:
-            self.data_file = os.path.join(WikiDatasetBuilder.data_dir,
+            self.data_file = os.path.join(_DS_CONF.data_dir.format(__dir__=__DIR__),
                                           self.config.build.subdirectory,
                                           self.config.build.filename)
         else:
@@ -133,11 +132,11 @@ class WikiDatasetBuilder:
         json.dump(self.dataset_dict, file, indent=4)
         file.close()
 
-    def load_dataset(data_file: Union[str,None] = None, split: str = "train") -> Dataset:
+    def load_dataset(self, data_file: Union[str,None] = None, split: str = "train") -> Dataset:
         if data_file is None:
-            data_file = WikiDatasetBuilder.data_file
+            data_file = self.data_file
 
-        return load_dataset("json", data_files=data_file, field=split)
+        return load_dataset("json", data_files=data_file, field=split)["train"]
 
 
 if __name__ == "__main__":
