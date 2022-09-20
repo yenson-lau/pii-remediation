@@ -8,10 +8,12 @@ __DIR__ = os.path.dirname(os.path.realpath(__file__))
 _BERT_CONF = OmegaConf.load(os.path.join(__DIR__, "config.yaml"))
 
 class WordPieceTrainer:
-    directory = os.path.join(_BERT_CONF.data_directory.format(__dir__=__DIR__),
-                          _BERT_CONF.tokenizer.subdirectory)
+    directory = os.path.join(
+        _BERT_CONF.data_directory.format(__dir__=__DIR__),
+        _BERT_CONF.tokenizer.subdirectory,
+        _BERT_CONF.tokenizer.wordpiece.subdirectory
+    )
     config = _BERT_CONF.tokenizer.wordpiece
-    prefix = _BERT_CONF.tokenizer.wordpiece.prefix
 
     def __init__(self,
         strip_accents: Optional[bool]  = None,
@@ -69,25 +71,19 @@ class WordPieceTrainer:
                                            trainer=self.trainer,
                                            length=len(dataset))
 
-    def save_tokenizer(self,
-        directory: Optional[str] = None,
-        prefix: Optional[str] = None
-    ) -> None:
-
+    def save_tokenizer(self, directory: Optional[str] = None) -> None:
         if directory is None:   directory = WordPieceTrainer.directory
         if prefix is None:      prefix = WordPieceTrainer.prefix
 
         os.makedirs(directory, exist_ok=True)
 
         prefix = os.path.join(directory, prefix)
-        self.tokenizer.save(f"{prefix}.json")
+        self.tokenizer.save(os.path.join(directory, "tokenizer.json"))
+        OmegaConf.save(config=OmegaConf.create({"wordpiece": self._config}),
+                       f=os.path.join(directory, "config.yaml"))
 
-        OmegaConf.save(config=OmegaConf.create(self._config),
-                       f=f"{prefix}_config.yaml")
+    def load_tokenizer(directory: Optional[str] = None) -> Tokenizer:
+        if directory is None:
+            directory = os.path.join(WordPieceTrainer.directory, "tokenizer.json")
 
-    def load_tokenizer(path: Optional[str] = None) -> Tokenizer:
-        if path is None:
-            path = os.path.join(WordPieceTrainer.directory,
-                                f"{WordPieceTrainer.prefix}.json")
-
-        return Tokenizer.from_file(path)
+        return Tokenizer.from_file(directory)

@@ -4,10 +4,13 @@ tokenizer:
   subdirectory: tokenizer
 
   wordpiece:
-    prefix: wordpiece
+    subdirectory: wordpiece
     vocab_size: 20_000
     strip_accents: true
     lowercase: false
     special_tokens: ["[UNK]", "[SEP]", "[PAD]", "[CLS]", "[MASK]"]
     batch_size: 1000
 
+pretrain: null
+
+ner: null
