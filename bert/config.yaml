@@ -1,5 +1,19 @@
 data_directory: "{__dir__}/../_data"
 
+pretrain:
+  subdirectory: &model_subdir models/bert
+  tokenizer: wordpiece
+
+  bert_config: {}
+  mlm_probability: 0.15
+  training_args:
+    output_dir: *model_subdir
+    overwrite_output_dir: true
+    train_num_epochs: 3,
+    save_steps: 10_000
+    save_total_limit: 2
+    prediction_loss_only: true
+
 tokenizer:
   subdirectory: tokenizer
 
@@ -10,7 +24,5 @@ tokenizer:
     lowercase: false
     special_tokens: ["[UNK]", "[SEP]", "[PAD]", "[CLS]", "[MASK]"]
     batch_size: 1000
-
-pretrain: null
 
 ner: null

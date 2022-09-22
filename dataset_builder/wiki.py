@@ -8,7 +8,7 @@ import time
 from datasets import Dataset, load_dataset
 from nltk.tokenize import sent_tokenize
 from omegaconf import OmegaConf, DictConfig
-from typing import Optional, Union
+from typing import Optional, Union, Sequence
 from unidecode import unidecode
 
 __DIR__ = os.path.dirname(os.path.realpath(__file__))
@@ -40,9 +40,9 @@ class WikiDatasetBuilder:
 
         if self.config.build.shuffle:
             np.random.seed(self.config.build.random_seed)
-            idx_queue = np.random.permutation(n_wiki)
+            article_queue = np.random.permutation(n_wiki)
         else:
-            idx_queue = np.arange(n_wiki)
+            article_queue = np.arange(n_wiki)
 
         self.dataset_dict["config"]: dict = OmegaConf.to_object(self.config)
         self.dataset_dict["article_title"]: dict[int, str] = dict()
@@ -54,9 +54,10 @@ class WikiDatasetBuilder:
         if sent_min_spaces is None:  sent_min_spaces = float("-inf")
         if sent_max_spaces is None:  sent_max_spaces = float("inf")
 
-        for split, lim_mb in self.config.specs.split_size_mb.items():
+        split_sizes = self.config.specs.split_size_mb
+
+        for split, lim_mb in split_sizes.items():
             self.dataset_dict[split] = []
-            n_sents = 0
             size_mb = 0
             start_time = time.time()
 
@@ -78,32 +79,36 @@ class WikiDatasetBuilder:
             # optimizing for loops:
             # - use a separate variable for each step
             # - preload config variables for intense tasks
-            for idx in map(int, idx_queue):
+            for articles_parsed, dataset_id in enumerate(map(int, article_queue)):
                 if size_mb > lim_mb:
-                    idx_queue = idx_queue[n_sents:]
+                    article_queue = article_queue[articles_parsed:]
                     break
 
-                article = self.wiki[idx]
+                article = self.wiki[dataset_id]
                 article_id = int(article["id"])
 
                 self.dataset_dict["article_title"][article_id] = article["title"]
-                self.dataset_dict["article_to_dataset_id"][article_id] = idx
+                self.dataset_dict["article_to_dataset_id"][article_id] = dataset_id
 
                 article_sents = [
                     s for s in WikiDatasetBuilder.extract_sentences(article["text"])
                     if sent_min_spaces <= s.count(" ") <= sent_max_spaces
                 ]
 
-                self.dataset_dict[split] += [dict(article_id=article_id, sentence=s)
+                self.dataset_dict[split] += [{"article_id": article_id, "text": s}
                                              for s in article_sents]
 
-                n_sents += len(article_sents)
                 size_mb += sum(map(len, article_sents)) / 1024**2
                 print_bar(size_mb)
             print()
 
         self.save_dataset_dict(self.data_file)
-        return WikiDatasetBuilder.load_dataset(self.data_file)
+
+        print("\n Running tests on data build:")
+        datasets = WikiDatasetBuilder._load_test(self.data_file, split_sizes.keys())
+        WikiDatasetBuilder._article_id_test(datasets)
+
+        return datasets
 
     def extract_sentences(text, use_unidecode=False):
         # remove non-ascii characters
@@ -132,11 +137,32 @@ class WikiDatasetBuilder:
         json.dump(self.dataset_dict, file, indent=4)
         file.close()
 
-    def load_dataset(self, data_file: Union[str,None] = None, split: str = "train") -> Dataset:
-        if data_file is None:
-            data_file = self.data_file
+    def load_dataset(
+        data_file: Optional[str] = None,
+        split: str = "train",
+        force_reload: bool = False
+    ) -> Dataset:
+        download_mode = "force_redownload" if force_reload else "reuse_dataset_if_exists"
+        return load_dataset("json", data_files=data_file,
+                                    field=split,
+                                    download_mode=download_mode)["train"]
 
-        return load_dataset("json", data_files=data_file, field=split)["train"]
+    def _load_test(data_file: str, splits: Sequence[str]):
+        datasets = {
+            split: WikiDatasetBuilder.load_dataset(data_file=data_file,
+                                                   split=split,
+                                                   force_reload=True)
+            for split in splits
+        }
+        print(f"Loaded data splits:\n{datasets}")
+        return datasets
+
+    def _article_id_test(datasets: dict[str, Dataset]):
+        ids = None
+        for data in datasets.values():
+            _ids = set(data["article_id"])
+            ids = _ids if ids is None else (ids & _ids)
+        print(f"Intersecting article ids: {ids}")
 
 
 if __name__ == "__main__":
