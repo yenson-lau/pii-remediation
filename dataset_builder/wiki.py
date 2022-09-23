@@ -138,7 +138,7 @@ class WikiDatasetBuilder:
         file.close()
 
     def load_dataset(
-        data_file: Optional[str] = None,
+        data_file: str,
         split: str = "train",
         force_reload: bool = False
     ) -> Dataset:

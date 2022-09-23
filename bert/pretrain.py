@@ -124,3 +124,10 @@ class BertMLMPretrainer:
     def train(self):
         self.trainer.train()
         self.trainer.save_model(self.output_dir)
+
+    def tokenize_function(self, examples):
+        encodings = [self.tokenizer.encode(text) for text in examples["text"]]
+        return {
+            "input_ids": [encoding.ids for encoding in encodings],
+            "attention_mask": [encoding.attention_mask for encoding in encodings],
+        }
