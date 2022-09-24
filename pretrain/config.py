@@ -22,7 +22,7 @@ class Config:
     ) -> Union[dict, DictConfig]:
 
         exp_dir = Config.get_exp_dir()
-        subconfig = Config.config.copy() if subconfig is None else subconfig.copy()
+        subconfig = (Config.config if subconfig is None else subconfig).copy()
 
         for k, v in subconfig.items():
             if k.endswith("_subdir"):
