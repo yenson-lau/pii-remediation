@@ -21,6 +21,7 @@ def build_wiki(
     random_seed: int = 0,
     sent_min_spaces: Optional[int] = 5,
     sent_max_spaces: Optional[int] = 200,
+    text_col: str = "text",
     output_dir: str = path.join(__DIR__, "..", "_data", "wiki", "20220301.en.1gb"),
     save_compressed: bool = True,
 ) -> ds.Dataset:
@@ -78,7 +79,7 @@ def build_wiki(
                 if sent_min_spaces <= s.count(" ") <= sent_max_spaces
             ]
 
-            data_dict["data"] += [{"article_id": article_id, "text": s}
+            data_dict["data"] += [{"article_id": article_id, text_col: s}
                                      for s in article_sents]
 
             size_mb += sum(map(len, article_sents)) / 1024**2
