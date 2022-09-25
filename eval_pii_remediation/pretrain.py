@@ -1,19 +1,19 @@
-from datasets import Dataset
-from omegaconf import OmegaConf
+from datasets import Dataset, load_dataset
+from os import path
 from transformers import (BertTokenizerFast,
                           BertConfig,
                           BertForMaskedLM,
                           DataCollatorForLanguageModeling,
                           Trainer,
                           TrainingArguments)
-from os import path
+from typing import Union
 
 __DIR__ = path.dirname(path.realpath(__file__))
 
 
 class BertPretrainer:
     def __init__(self,
-        dataset: Dataset,
+        dataset: Union[str, Dataset],
         text_col: str = "text",
         vocab_size = 20_000,
         base_model = "bert-base-cased",
@@ -21,6 +21,12 @@ class BertPretrainer:
         tokenizer_dir = "_data/pretrain/tokenizer",
         model_dir = "_data/pretrain/model",
     ):
+
+        if isinstance(dataset, str):
+            data_file = path.join(dataset, "train_data.json")
+            if not path.isfile(data_file):  data_file += ".gz"
+            dataset = load_dataset("json", data_files=data_file, field="data")["train"]
+
         self.dataset = dataset
         self.text_col = text_col
         self.vocab_size = vocab_size

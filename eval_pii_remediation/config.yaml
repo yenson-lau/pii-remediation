@@ -1,5 +1,4 @@
 data_dir: "{__dir__}/../_data"
-exp_label: "_pretrain"
 
 dataset:
   wiki:
@@ -20,8 +19,8 @@ pretrain:
   vocab_size: 20_000
   base_model: bert-base-cased
   max_length: 128
-  tokenizer_subdir: "tokenizer"
-  model_subdir: "model"
+  tokenizer_subdir: "_pretrain/tokenizer"
+  model_subdir: "_pretrain/model"
 
   tokenize_params: {}
 

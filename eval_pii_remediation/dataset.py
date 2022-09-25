@@ -25,6 +25,7 @@ def build_wiki(
     output_dir: str = path.join(__DIR__, "..", "_data", "wiki", "20220301.en.1gb"),
     save_compressed: bool = True,
 ) -> ds.Dataset:
+
     wiki_full = ds.load_dataset("wikipedia", hf_config, split="train")
     n_wiki_full = len(wiki_full)
 
