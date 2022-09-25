@@ -16,13 +16,14 @@ class Config:
         Config.config = Config.resolve_subdirs(Config.config, as_dict=as_dict)
 
     def resolve_subdirs(
-        subconfig: Optional[Union[dict, DictConfig]] = None,
+        subconfig: Union[dict, DictConfig],
         as_dict: bool = False
     ) -> Union[dict, DictConfig]:
 
-        exp_dir = path.relpath(path.join(config.data_dir.format(__dir__=__DIR__),
-                                         config.exp_label))
-        subconfig = (Config.config if subconfig is None else subconfig).copy()
+        subconfig = subconfig.copy()
+
+        data_dir = Config.config.data_dir.format(__dir__=__DIR__)
+        exp_dir = path.relpath(path.join(data_dir, Config.config.exp_label))
 
         for k, v in subconfig.items():
             if k.endswith("_subdir"):

@@ -13,8 +13,10 @@ dataset:
     output_subdir: "wiki/20220301.en.1gb"
     save_compressed: true
 
-train:
+pretrain:
   dataset: wiki
+  remediate_pii: false
+
   vocab_size: 20_000
   base_model: bert-base-cased
   max_length: 128
@@ -33,3 +35,7 @@ train:
     save_steps: 10_000
     save_total_limit: 2
     prediction_loss_only: true
+
+finetune: null
+
+evaluate: null
