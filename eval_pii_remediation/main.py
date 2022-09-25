@@ -5,7 +5,7 @@ from os import path
 from typing import Optional
 
 
-def run_pipeline(config):
+def run_exp_pipeline(config):
     # Dataset
     dataset: str = config.pretrain.dataset
     dataset_config = config.dataset[dataset]
@@ -29,13 +29,17 @@ def run_pipeline(config):
                   bert_config=pretrain_config.bert_config,
                   training_args=pretrain_config.training_args)
 
+    # Evaluate
+
+
 def main(config: Optional[str] = None):
-    Config.reset_config(config)     # fresh config
+    Config.reset_config(config)         # fresh config
 
-    # ... make / loop over modifications
-    Config.resolve_config()         # resolve the config
+    # loop over experimental settings:
+    # ...                               # make modifications to the config
+    Config.resolve_config()             # resolve the config
 
-    run_pipeline(Config.config)
+    run_exp_pipeline(Config.config)     # run experimental pipeline
 
 
 if __name__ == "__main__":
