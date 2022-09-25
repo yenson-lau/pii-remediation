@@ -47,7 +47,7 @@ class BertPretrainer:
         training_args: dict = (),
     ):
         self.train_tokenizer()
-        self.tokenize_dataset(self, **tokenize_params)
+        self.tokenize_dataset(**tokenize_params)
         self.train_mlm(mlm_probability, bert_config, training_args)
 
     def train_tokenizer(self):

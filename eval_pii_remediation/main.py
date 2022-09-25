@@ -1,4 +1,3 @@
-from lib2to3.pgen2.tokenize import tokenize
 from .config import Config
 from .dataset import build_wiki
 from .pretrain import BertPretrainer
