@@ -1,5 +1,5 @@
-from .config import Config
-from .dataset import build_wiki
+from ..utils import Config
+from ..dataset import build_wiki
 from .pretrain import BertPretrainer
 from os import path
 from typing import Optional

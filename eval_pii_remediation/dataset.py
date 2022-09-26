@@ -43,10 +43,10 @@ def build_wiki(
                          article_to_dataset_id = dict(),
                          data = [])
 
-        size_mb = 0
+        size_MB = 0
         start_time = time.time()
 
-        def print_bar(size_mb, term_len=None):
+        def print_bar(size_MB, term_len=None):
             if term_len is None:
                 try:
                     term_len = get_terminal_size().columns
@@ -54,12 +54,12 @@ def build_wiki(
                     term_len = 80
 
             elapsed_time = time.time() - start_time
-            size_mb_str = (r"{:%sd}" % len(str(lim_mb))).format(int(size_mb))
-            frac = size_mb/lim_mb
-            rate = size_mb/elapsed_time
+            size_mb_str = (r"{:%sd}" % len(str(lim_mb))).format(int(size_MB))
+            frac = size_MB/lim_mb
+            rate = size_MB/elapsed_time
 
             desc = f"Building {split} split: {int(frac*100):3d}% "
-            stats = f" {size_mb_str}/{lim_mb}mb [{int(elapsed_time):d}s, {rate:.1f}mb/s]"
+            stats = f" {size_mb_str}/{lim_mb}MB [{int(elapsed_time):d}s, {rate:.1f}MB/s]"
 
             bar_len = term_len - len(desc) - len(stats) - 2
             fill_len = int(frac * bar_len)
@@ -71,7 +71,7 @@ def build_wiki(
         # - use a separate variable for each step
         # - preload config variables for intense tasks
         for articles_parsed, dataset_id in enumerate(map(int, article_queue)):
-            if size_mb > lim_mb:
+            if size_MB > lim_mb:
                 article_queue = article_queue[articles_parsed:]
                 break
 
@@ -89,8 +89,8 @@ def build_wiki(
             data_dict["data"] += [{"article_id": article_id, text_col: s}
                                      for s in article_sents]
 
-            size_mb += sum(map(len, article_sents)) / 1024**2
-            print_bar(size_mb)
+            size_MB += sum(map(len, article_sents)) / 1024**2
+            print_bar(size_MB)
         print()
 
         data_file = path.join(output_dir, f"{split}_data.json")
@@ -177,12 +177,13 @@ if __name__ == "__main__":
             shuffle= True,
             random_seed = 0,
             sent_min_spaces = 5,
-            sent_max_spaces = 200
+            sent_max_spaces = 200,
+            text_col = "text"
         )
 
         if(sys.argv[1]=="build"):
             build_wiki(
-                split_sizes_MB = {"train": 1024, "test": 256},
+                split_sizes_MB = {"train": 1024, "val": 128, "test": 128},
                 output_dir = output_dir + ".1gb",
                 save_compressed = True,
                 **config
@@ -190,7 +191,7 @@ if __name__ == "__main__":
 
         elif(sys.argv[1]=="test"):
             build_wiki(
-                split_sizes_MB = {"train": 10, "test": 1},
+                split_sizes_MB = {"train": 1, "val": .1, "test": .1},
                 output_dir = output_dir + ".test",
                 save_compressed = False,
                 **config
