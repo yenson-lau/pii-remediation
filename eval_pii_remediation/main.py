@@ -31,6 +31,8 @@ def run_exp_pipeline(config):
 
     # Evaluate
 
+    return trainer
+
 
 def main(config: Optional[str] = None):
     Config.reset_config(config)         # fresh config

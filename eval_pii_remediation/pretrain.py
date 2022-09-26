@@ -23,9 +23,12 @@ class BertPretrainer:
     ):
 
         if isinstance(dataset, str):
-            data_file = path.join(dataset, "train_data.json")
-            if not path.isfile(data_file):  data_file += ".gz"
-            dataset = load_dataset("json", data_files=data_file, field="data")["train"]
+            ds_dir = dataset
+            dataset = dict()
+            for split in ["train", "val", "test"]:
+                data_file = path.join(ds_dir, f"{split}_data.json")
+                if not path.isfile(data_file):  data_file += ".gz"
+                dataset[split] = load_dataset("json", data_files=data_file, field="data")["train"]
 
         self.dataset = dataset
         self.text_col = text_col
@@ -51,9 +54,11 @@ class BertPretrainer:
         self.train_mlm(mlm_probability, bert_config, training_args)
 
     def train_tokenizer(self):
+        text = self.dataset["train"][self.text_col]
+
         self.tokenizer = (BertTokenizerFast
                             .from_pretrained(self.base_model)
-                            .train_new_from_iterator(self.dataset[self.text_col], self.vocab_size))
+                            .train_new_from_iterator(text, self.vocab_size))
         self.tokenizer.model_max_length = self.max_length
 
         self.tokenizer.save_pretrained(self.tokenizer_dir)
@@ -65,10 +70,14 @@ class BertPretrainer:
         assert self.tokenizer is not None, "tokenizer needs to be trained"
         self.tokenizer.model_max_length = self.max_length
 
-        tokenize_function = lambda ex: self.tokenizer(ex[self.text_col], truncation=True)
-        self.tokenized_dataset = self.dataset.map(tokenize_function,
-                                                  remove_columns = list(self.dataset.features),
-                                                  **_tokenize_params)
+        tokenize_function = lambda ex: self.tokenizer(ex[self.text_col],
+                                                      truncation=True,
+                                                      padding=True)
+
+        self.tokenized_dataset = {
+            k: v.map(tokenize_function, remove_columns = list(v.features), **_tokenize_params)
+            for k, v in self.dataset.items()
+        }
 
     def train_mlm(self,
         mlm_probability: float = 0.15,
@@ -82,26 +91,29 @@ class BertPretrainer:
         data_collator = DataCollatorForLanguageModeling(tokenizer = self.tokenizer,
                                                         mlm_probability = mlm_probability)
 
-        _bert_config = dict(max_position_embeddings=self.max_length)
-        _bert_config.update(bert_config)
-        bert_config = BertConfig(vocab_size = self.tokenizer.vocab_size, **_bert_config)
-
+        bert_config = BertConfig(vocab_size = self.tokenizer.vocab_size, **bert_config)
         self.model = BertForMaskedLM(config = bert_config)
 
         _training_args = dict(num_train_epochs = 1,
                               per_device_train_batch_size = 128,
                               save_steps = 10_000,
                               save_total_limit = 2,
-                              prediction_loss_only = True,
-                              output_dir = self.model_dir,
-                              overwrite_output_dir = True)
+                              prediction_loss_only = True,)
         _training_args.update(training_args)
-        training_args = TrainingArguments(**_training_args)
+        training_args = TrainingArguments(output_dir = self.model_dir,
+                                          overwrite_output_dir = True,
+                                          **_training_args)
 
         trainer = Trainer(model = self.model,
                           args = training_args,
                           data_collator = data_collator,
-                          train_dataset = self.tokenized_dataset)
+                          compute_metrics = self.compute_metrics,
+                          train_dataset = self.tokenized_dataset["train"],
+                          eval_dataset=self.tokenized_dataset["val"])
 
         trainer.train()
         trainer.save_model(self.model_dir)
+
+    def compute_metrics(self, preds):
+        self.preds = preds
+        return {"metric": -1}

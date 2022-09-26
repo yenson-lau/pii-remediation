@@ -46,7 +46,13 @@ def build_wiki(
         size_mb = 0
         start_time = time.time()
 
-        def print_bar(size_mb, term_len=get_terminal_size().columns):
+        def print_bar(size_mb, term_len=None):
+            if term_len is None:
+                try:
+                    term_len = get_terminal_size().columns
+                except OSError:
+                    term_len = 80
+
             elapsed_time = time.time() - start_time
             size_mb_str = (r"{:%sd}" % len(str(lim_mb))).format(int(size_mb))
             frac = size_mb/lim_mb

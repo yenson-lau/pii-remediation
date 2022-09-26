@@ -3,16 +3,19 @@ data_dir: "{__dir__}/../_data"
 dataset:
   wiki:
     hf_config: 20220301.en
-    # split_sizes_MB: {train: 10, test: 1}
-    split_sizes_MB: {train: 1024, test: 256}
+    split_sizes_MB: {train: 1024, val: 128, test: 128}
     shuffle: true
     random_seed: 0
     sent_min_spaces: 5
     sent_max_spaces: 200
     text_col: text
-    # output_subdir: "wiki/20220301.en.test"
     output_subdir: "wiki/20220301.en.1gb"
     save_compressed: true
+
+    .test_override:
+      split_sizes_MB: {train: 1, val: .1, test: .1}
+      output_subdir: "wiki/20220301.en.test"
+      save_compressed: false
 
 pretrain:
   dataset: wiki
@@ -31,11 +34,17 @@ pretrain:
   bert_config: {}
 
   training_args:
-    num_train_epochs: 1
+    optim: adamw_torch
+    num_train_epochs: 3
     per_device_train_batch_size: 128
-    save_steps: 10_000
     save_total_limit: 2
-    prediction_loss_only: true
+    save_steps: 500
+
+    .test_override:
+      max_steps: 3
+      logging_steps: 1
+      evaluation_strategy: steps
+      # save_steps: 1
 
 finetune: null
 
