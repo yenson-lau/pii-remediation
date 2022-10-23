@@ -1,12 +1,12 @@
 #!/bin/sh
 
 # Install packages
-pip install -q datasets evaluate transformers tokenizers
-pip install -q "ipywidgets>=7.0,<8.0"
-pip install -q black papermill scrapbook
+pip install datasets evaluate transformers tokenizers
+pip install "ipywidgets>=7.0,<8.0"
+pip install black papermill scrapbook
 
 # Download data
-pip install -q b2
+pip install b2
 
 export B2_APPLICATION_KEY_ID=001fb03ea2a8a1c0000000001
 export B2_APPLICATION_KEY=K001IiLmTwMNx5jUMJexoRI+iF1v0JQ
