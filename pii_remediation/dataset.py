@@ -1,7 +1,6 @@
 import datasets as ds
-import gzip
-import json
 import numpy as np
+import pandas as pd
 import re
 import time
 from nltk.tokenize import sent_tokenize
@@ -21,7 +20,7 @@ def build_wiki(
     random_seed: int = 0,
     sent_min_spaces: Optional[int] = 5,
     sent_max_spaces: Optional[int] = 200,
-    output_dir: str = path.join(__DIR__, "..", "_data", "wiki", "20220301.en.1gb"),
+    output_dir: str = path.join(__DIR__, "..", "_data", "wiki"),
     save_compressed: bool = True,
 ) -> ds.Dataset:
 
@@ -37,10 +36,11 @@ def build_wiki(
     if sent_min_spaces is None:  sent_min_spaces = float("-inf")
     if sent_max_spaces is None:  sent_max_spaces = float("inf")
 
+    article_info = dict(id=[], title=[], dataset_id=[])
+    makedirs(output_dir, exist_ok=True)
+
     for split, lim_mb in split_sizes_MB.items():
-        data_dict = dict(article_title = dict(),
-                         article_to_dataset_id = dict(),
-                         data = [])
+        data = dict(article_id=[], text=[])
 
         size_MB = 0
         start_time = time.time()
@@ -77,25 +77,27 @@ def build_wiki(
             article = wiki_full[dataset_id]
             article_id = int(article["id"])
 
-            data_dict["article_title"][article_id] = article["title"]
-            data_dict["article_to_dataset_id"][article_id] = dataset_id
+            article_info["id"].append(article_id)
+            article_info["title"].append(article["title"])
+            article_info["dataset_id"].append(dataset_id)
 
             article_sents = [
                 s for s in _extract_sentences(article["text"])
                 if sent_min_spaces <= s.count(" ") <= sent_max_spaces
             ]
-
-            data_dict["data"] += [{"article_id": article_id, "text": s}
-                                     for s in article_sents]
+            data["article_id"] += [article_id] * len(article_sents)
+            data["text"] += article_sents
 
             size_MB += sum(map(len, article_sents)) / 1024**2
             print_bar(size_MB)
         print()
 
-        data_file = path.join(output_dir, f"{split}_data.json")
-        if save_compressed:  data_file += ".gz"
-        save_data_dict(data_dict, data_file)
-        del data_dict
+        data_file = path.join(output_dir, f"{split}_data.csv") + (".gz" if save_compressed else "")
+        pd.DataFrame(data).to_csv(data_file, index=False)
+        del data
+
+    articles_file = path.join(output_dir, f"articles.csv") + (".gz" if save_compressed else "")
+    pd.DataFrame(article_info).to_csv(articles_file, index=False)
 
     OmegaConf.save(
         config=OmegaConf.create(dict(
@@ -111,24 +113,20 @@ def build_wiki(
 
     return load_wiki(directory=output_dir, splits=split_sizes_MB, force_reload=True)
 
-def load_wiki(directory: str, splits: Sequence[str], force_reload: bool = False) -> ds.Dataset:
-    download_mode = "force_redownload" if force_reload else "reuse_dataset_if_exists"
-    dataset = dict()
-
-    for split in splits:
-        data_file = path.join(directory, f"{split}_data.json")
-        if not path.isfile(data_file):  data_file += ".gz"
-
-        dataset[split] = ds.load_dataset(
-            "json",
-            data_files = data_file,
-            field = "data",
-            download_mode = download_mode)["train"]
-
-    return dataset
-
 
 # Utils
+def load_wiki(directory: str, splits: Sequence[str], force_reload: bool = False) -> ds.Dataset:
+    def data_file(split):
+        filename =  path.join(directory, f"{split}_data.csv")
+        filename += "" if path.isfile(filename) else ".gz"
+        return filename
+
+    return ds.load_dataset(
+        "csv",
+        data_files = {split: data_file(split) for split in splits},
+        download_mode = "force_redownload" if force_reload else "reuse_dataset_if_exists"
+    )
+
 def _extract_sentences(text, use_unidecode=False):
     # remove non-ascii characters
     # replace multiple consecutive spaces with a single space
@@ -145,13 +143,6 @@ def _extract_sentences(text, use_unidecode=False):
     sents = sum(map(sent_tokenize, lines), [])
 
     return sents
-
-def save_data_dict(data_dict: dict, data_file: str) -> None:
-    makedirs(path.dirname(data_file), exist_ok=True)
-    file = (gzip.open(data_file, 'wt', encoding='UTF-8') if data_file.endswith(".gz")
-            else open(data_file, 'wt', encoding='UTF-8'))
-    json.dump(data_dict, file, indent=4)
-    file.close()
 
 
 # Testing
@@ -170,7 +161,7 @@ if __name__ == "__main__":
     # TODO: Expand args to accept different configs / use argparse
     if (len(sys.argv) > 1):
         hf_config = "20220301.en"
-        output_dir = path.join(__DIR__, "..", "_data", "wiki", hf_config)
+        output_dir = path.join(__DIR__, "..", "_data", "wiki")
         config = dict(
             hf_config = hf_config,
             shuffle= True,
@@ -182,7 +173,7 @@ if __name__ == "__main__":
         if(sys.argv[1]=="build"):
             build_wiki(
                 split_sizes_MB = {"train": 1024, "val": 128, "test": 128},
-                output_dir = output_dir + ".1gb",
+                output_dir = output_dir,
                 save_compressed = True,
                 **config
             )
@@ -190,7 +181,7 @@ if __name__ == "__main__":
         elif(sys.argv[1]=="test"):
             build_wiki(
                 split_sizes_MB = {"train": 1, "val": .1, "test": .1},
-                output_dir = output_dir + ".test",
+                output_dir = output_dir + "_test",
                 save_compressed = False,
                 **config
             )
